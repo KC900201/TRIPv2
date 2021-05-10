@@ -32,3 +32,6 @@ Python
 ## Publications
 1. [Performance Enhancement of Region-based Spatio-temporal Neural Network for Traffic Risk Estimation using Real and Virtual Datasets](https://www.jstage.jst.go.jp/article/pjsai/JSAI2020/0/JSAI2020_3F1ES201/_pdf)
 2. [Traffic Risk Estimation from On-vehicle Video by Region-based Spatio-temporal DNN trained using Comparative Loss](https://www.jstage.jst.go.jp/article/pjsai/JSAI2019/0/JSAI2019_3Rin201/_pdf)
+
+## License
+[MIT](https://choosealicense.com/licenses/mit/)
