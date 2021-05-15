@@ -1,9 +1,9 @@
 # Set up configurations and
 # constants for model training and testing, dataset loading
-import albumentations as A
-import torch
-from albumentations.pytorch import ToTensorV2
 
+import torch
+
+# Common parameters for CNN training
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 LEARNING_RATE = 2e-4
 BATCH_SIZE = 1
@@ -23,6 +23,24 @@ NUM_EPOCHS = 500
 LOAD_MODEL = True
 SAVE_MODEL = False
 
+# TRIP project specific paramaters
+BOX_TYPE = "EBOX"  # EBOX = estimation box, TBOX = true value box (YOLO-based)
+EXECUTION_MODE = "TRAIN"  # TRAIN / TEST
+MINIBATCH_SIZE = 32  # 32, 16, 64
+EVAL_INTERVAL = 5
+SAVE_INTERVAL = 10
+LAYER_NAME = "CONV33"  # CONV33, CONV39, CONV45 (YOLO-based)
+INPUT_SIZE = 1000
+HIDDEN_SIZE = 100
+COMPARISON_LOSS_MARGIN = 0.3
+THRESHOLD_SIMILAR_RISK = 0.11
+OPTIMIZER = "ADADELTA"  # adam | adadelta | adagrad [lr=0.001]  |rmsprop [lr=0.01] | momentum_sgd [lr=0.01 momentum=0.9] |
+# nesterovag [lr=0.01 momentum=0.9] | rmspropgraves [lr=0.0001 momentum=0.9] | sgd [lr=0.01] | smorms3 [lr=0.001]
+
+GPU_ID = 0
+ROI_BG = "BG_ZERO"  # Region of interest background, BG_ZERO = background zero, BG_GN = gaussian noise
+
+# Checkpoint and directories
 CHECKPOINT_GEN_H = "genh.pth.tar"
 CHECKPOINT_GEN_Z = "genz.pth.tar"
 
@@ -31,14 +49,3 @@ CHECKPOINT_CRITIC_Z = "criticz.pth.tar"
 
 TRAIN_DIR = "data/train_dir"
 TEST_DIR = "data/test_dir"
-
-transforms = A.Compose(
-    [
-        A.Resize(width=256, height=256),
-        A.HorizontalFlip(p=0.5),
-        A.ColorJitter(p=0.1),
-        A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], max_pixel_value=255),
-        ToTensorV2(),
-    ],
-    additional_targets={"image0:" "image"},
-)
