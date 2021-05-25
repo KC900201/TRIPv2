@@ -30,7 +30,7 @@ class TripCLSTM(TripLSTM):
         """
         super(TripCLSTM, self).__init__(input_size, hidden_size)
         with self.init_scope():
-            pass
+            pass # Continue here (5/25/2021)
 
     def __call__(self, x):
         """ Forward propagation
