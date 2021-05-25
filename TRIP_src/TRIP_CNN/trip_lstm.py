@@ -10,7 +10,7 @@ Date          Comment
 """
 
 import torch
-import cupy
+import cupy as cp
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
@@ -51,7 +51,7 @@ class TripLSTM(nn.Module):
         self.lstm.reset_parameters()
         # recurrent reasoning and risk prediction
         for t in range(len(x)):
-            v = x # Need to modify this, chainer => Variable, how does pytorch replace this?
+            v = torch.Tensor(self.xp.array(x[t], dtype=self.xp.float32))  # replace Variable with Tensor
             h = self(v)
         return F.sigmoid(self.ho(h))
 
@@ -63,8 +63,15 @@ class TripLSTM(nn.Module):
              r (a Variavle of float): a risk value
         """
         # reset lstm state
-        pass
+        self.lstm.reset_parameters()
         # recurrent seasoning and risk prediction
+        mr = 0
+        for t in range(len(x)):
+            v = torch.Tensor(self.xp.array(x[t], dtype=self.xp.float32))
+            h = self(v)
+            r = F.sigmoid(self.ho(h))
+            mr += r
+        return mr / len(x)
 
     def predict_max_risk(self, x):
         """ Risk prediction (max)
@@ -74,8 +81,21 @@ class TripLSTM(nn.Module):
              r (a Variable of float): a risk value
         """
         # reset lstm state
-        pass
+        self.lstm.reset_parameters()
+        max_r = 0
         # recurrent reasoning and risk prediction
+        for t in range(len(x)):
+            v = torch.Tensor(self.xp.array(x[t], dtype=self.xp.float32))
+            h = self(v)
+            r = F.sigmoid(self.ho(h))
+            if t == 0:
+                max_r = r
+            else:
+                if r.data > max_r.data:
+                    max_r = r
+                else:
+                    max_r = max_r
+        return max_r
 
     def predict_max_risk_2(self, x):
         """ Risk prediction (max)
@@ -85,9 +105,21 @@ class TripLSTM(nn.Module):
              r (a Variable of float): a risk value
         """
         # reset lstm state
-        pass
+        self.lstm.reset_parameters()
+        # recurrent reasoning and risk prediction
+        max_r = 0
 
-    def comparative_loss(self):
+        for t in range(len(x)):
+            v = torch.Tensor(self.xp.array(x[t], dtype=self.xp.float32))
+            h = self(v)
+            r = F.sigmoid(self.ho(h))
+            if t == 0:
+                max_r = r
+            else:
+                max_r = torch.Tensor(cp.maximum(r.data, max_r.data))
+        return max_r
+
+    def comparative_loss(self, ra, rc, rel, margin=0.5):
         """ Comparative loss function
             Args:
              ra (a Variable of float array): anchor risk (minibatch size)
@@ -99,3 +131,9 @@ class TripLSTM(nn.Module):
             Returns:
              loss (Variable of float array): comparative loss
         """
+        rel = self.xp.array(rel)
+        zero = torch.Tensor(self.xp.array([[0.]]*len(ra.data), dtype=self.xp.float32))
+        cl = torch.where(rel > 0, torch.maximum(rc-ra+margin, zero), torch.where(rel < 0, torch.maximum(ra-rc+margin, zero)), torch.absolute(rc - ra))
+        loss = torch.sum(torch.square(cl/2))
+
+        return loss
