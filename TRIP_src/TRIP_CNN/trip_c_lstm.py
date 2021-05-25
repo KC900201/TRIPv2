@@ -9,14 +9,28 @@ Date          Comment
 """
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from trip_lstm import TripLSTM
+
 import TRIP_src.config
 
 class TripCLSTM(TripLSTM):
-    """A class of TRIP(Traffic Risk Prediction) model, which has a pooling layer on the input side
     """
-    def __init__(self, input_size):
-        pass
+        A class of TRIP(Traffic Risk Prediction) model,
+        which has a pooling layer on the input side
+    """
+    def __init__(self, input_size, hidden_size, model_arch):
+        """
+            Constructor
+            Args:
+                input_size (int):
+                hidden_size (int):
+                model_arch (str):
+        """
+        super(TripCLSTM, self).__init__(input_size, hidden_size)
+        with self.init_scope():
+            pass
 
     def __call__(self, x):
         """ Forward propagation
