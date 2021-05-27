@@ -21,6 +21,7 @@ class TripLSTM(nn.Module):
         A class of TRIP(Traffic Risk Prediction) model
     """
 
+
     def __init__(self, input_size, hidden_size):
         super(TripLSTM, self).__init__()
         with self.init_scope():
