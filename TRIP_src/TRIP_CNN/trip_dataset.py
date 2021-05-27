@@ -48,14 +48,15 @@ class TripDataset():
             if line.startswith('feature'):
                 self.feature_type = line[line.find(':') + 1:].strip()
             elif line.startswith('layer'):
-                layers = line[line.find(':')+1:].split(';')
+                layers = line[line.find(':') + 1:].split(';')
                 for layer in layers:
                     quintuple = layer.strip().split(',')
                     quintuple = [element.strip() for element in quintuple]
                     if quintuple[0] in layer_names:
                         layer_dir = quintuple[1]
                         # Upscaling of height and width for layer 33 and 39 - 20190130
-                        self.layer_info = (quintuple[0], int(quintuple[2]), int(quintuple[3]), int(quintuple[4])) # (layer_name, height, width, channels)
+                        self.layer_info = (quintuple[0], int(quintuple[2]), int(quintuple[3]),
+                                           int(quintuple[4]))  # (layer_name, height, width, channels)
 
         if self.feature_type == 'raw':
             self.box_type = box_type
