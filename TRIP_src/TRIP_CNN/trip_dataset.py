@@ -132,114 +132,107 @@ class TripDataset(D.Dataset):  # Replace chainer.dataset.DatasetMixin with torch
 
         return self.dirs[i], sample
 
+    def __len__(self):
+        """Get the length of a dataset
+           Returns:
+            len (int): length of the dataset (that is, the number of video clips)
+        """
+        return len(self.feature_data)
 
-def __len__(self):
-    """Get the length of a dataset
-       Returns:
-        len (int): length of the dataset (that is, the number of video clips)
-    """
-    return len(self.feature_data)
+    def get_layer_info(self):
+        """Get layer information
+           Returns:
+            layer_info (tuple): a tuple of layer_name, height, width, channels
+        """
+        return self.layer_info
 
+    def get_feature_type(self):
+        """Get feature type
+           Returns:
+            feature_type (str): feature type 'raw', 'tbox_processed' or 'ebox_processed'
+        """
+        return self.feature_type
 
-def get_layer_info(self):
-    """Get layer information
-       Returns:
-        layer_info (tuple): a tuple of layer_name, height, width, channels
-    """
-    return self.layer_info
+    def get_box_type(self):
+        """Get box type
+           Returns:
+            box_type (str): box type 'tbox' or 'ebox'
+        """
+        return self.box_type
 
+    def get_length(self):
+        """Get the length of a dataset
+           Returns:
+            len (int): length of the dataset (that is, the number of video clips)
+        """
+        return self.__len__()
 
-def get_feature_type(self):
-    """Get feature type
-       Returns:
-        feature_type (str): feature type 'raw', 'tbox_processed' or 'ebox_processed'
-    """
-    return self.feature_type
+    def prepare_input_sequence(self, batch, roi_bg=('BG_ZERO')):
+        """ Prepare input sequence
+                    Args:
+                     batch (list of dataset samples): a list of samples of dataset
+                    Returns:
+                     feature batch (list of arrays): a list of feature arrays
+        """
+        ffs_batch = []
+        if self.feature_type == 'raw':
+            for one_batch in batch:
+                ffs = [element[0] for element in
+                       one_batch[1]]  # a list of array[1 x channel x h x w], size=the length of sequence
+                rbs = [element[1] for element in one_batch[1]]
+                roi_ffs = []
+                for i in range(len(ffs)):
+                    roi_ffs.append(self.extract_roi_feature(ffs[i], rbs[i], roi_bg))
+                ffs_batch.append(roi_ffs)
+        else:
+            for one_batch in batch:
+                ffs = [element[0] for element in one_batch]
+                ffs_batch.append(ffs)
+        # frame (ROI) feature batch sequence
+        ffb_seq = []  # a sequence length list of frame feature
 
+        for i in range(len(ffs_batch[0])):
+            ffb_seq.append(np.concatenate([alist[i] for alist in ffs_batch]))
 
-def get_box_type(self):
-    """Get box type
-       Returns:
-        box_type (str): box type 'tbox' or 'ebox'
-    """
-    return self.box_type
+        return ffb_seq
 
-
-def get_length(self):
-    """Get the length of a dataset
-       Returns:
-        len (int): length of the dataset (that is, the number of video clips)
-    """
-    return self.__len__()
-
-
-def prepare_input_sequence(self, batch, roi_bg=('BG_ZERO')):
-    """ Prepare input sequence
-                Args:
-                 batch (list of dataset samples): a list of samples of dataset
-                Returns:
-                 feature batch (list of arrays): a list of feature arrays
-    """
-    ffs_batch = []
-    if self.feature_type == 'raw':
-        for one_batch in batch:
-            ffs = [element[0] for element in
-                   one_batch[1]]  # a list of array[1 x channel x h x w], size=the length of sequence
-            rbs = [element[1] for element in one_batch[1]]
-            roi_ffs = []
-            for i in range(len(ffs)):
-                roi_ffs.append(self.extract_roi_feature(ffs[i], rbs[i], roi_bg))
-            ffs_batch.append(roi_ffs)
-    else:
-        for one_batch in batch:
-            ffs = [element[0] for element in one_batch]
-            ffs_batch.append(ffs)
-    # frame (ROI) feature batch sequence
-    ffb_seq = []  # a sequence length list of frame feature
-
-    for i in range(len(ffs_batch[0])):
-        ffb_seq.append(np.concatenate([alist[i] for alist in ffs_batch]))
-
-    return ffb_seq
-
-
-def extract_roi_feature(self, feature, box, roi_bg):  # <ADD roi_bg/>
-    """ Extract ROI feature
-                Args:
-                 feature (numpy array): feature array  (1, channel, height, width)
-                 box (list): box information
-                Returns:
-                 extracted feature (numpy array): extracted feature array
-    """
-    # <MOD>
-    bg = roi_bg[0]  # bg ::= BG_ZERO|BG_GN(Gaussian Noise)|BG_DP(Depression)
-    if bg == 'BG_ZERO':
-        # zero array with the same shape
-        extracted_feature = np.zeros_like(feature)
-    elif bg == 'BG_GN':
-        gn_mean = 0.0
-        gn_std = roi_bg[1]
-        # extracted_feature = np.random.normal(gn_mean, gn_std, feature.shape)
-        # convert feature into np array to use shape attr - 20190226
-        np_feature = np.asarray(feature)
-        extracted_feature = np.random.normal(gn_mean, gn_std, np_feature.shape)
-    elif bg == 'BG_DP':
-        depression = roi_bg[1]
-        extracted_feature = feature * depression
-    # </MOD>
-    # partial substitution
-    # l_name, l_height, l_width, l_channels = self.layer_info
-    l_height, l_width = extracted_feature.shape[2:]
-    feat_np = np.asarray(feature)
-    for b in box:  # [label, center-x, center-y, width, height]
-        x0 = b[1] - b[3] / 2
-        y0 = b[2] - b[4] / 2
-        x1 = b[1] + b[3] / 2
-        y1 = b[2] + b[4] / 2
-        l_x0 = math.floor(l_width * x0)
-        l_y0 = math.floor(l_height * y0)
-        l_x1 = math.ceil(l_width * x1)
-        l_y1 = math.ceil(l_height * y1)
-        # extracted_feature[:,:,l_y0:l_y1,l_x0:l_x1] = feature[:,:,l_y0:l_y1,l_x0:l_x1]
-        extracted_feature[:, :, l_y0:l_y1, l_x0:l_x1] = feat_np[:, :, l_y0:l_y1, l_x0:l_x1]
-    return extracted_feature
+    def extract_roi_feature(self, feature, box, roi_bg):  # <ADD roi_bg/>
+        """ Extract ROI feature
+                    Args:
+                     feature (numpy array): feature array  (1, channel, height, width)
+                     box (list): box information
+                    Returns:
+                     extracted feature (numpy array): extracted feature array
+        """
+        # <MOD>
+        bg = roi_bg[0]  # bg ::= BG_ZERO|BG_GN(Gaussian Noise)|BG_DP(Depression)
+        if bg == 'BG_ZERO':
+            # zero array with the same shape
+            extracted_feature = np.zeros_like(feature)
+        elif bg == 'BG_GN':
+            gn_mean = 0.0
+            gn_std = roi_bg[1]
+            # extracted_feature = np.random.normal(gn_mean, gn_std, feature.shape)
+            # convert feature into np array to use shape attr - 20190226
+            np_feature = np.asarray(feature)
+            extracted_feature = np.random.normal(gn_mean, gn_std, np_feature.shape)
+        elif bg == 'BG_DP':
+            depression = roi_bg[1]
+            extracted_feature = feature * depression
+        # </MOD>
+        # partial substitution
+        # l_name, l_height, l_width, l_channels = self.layer_info
+        l_height, l_width = extracted_feature.shape[2:]
+        feat_np = np.asarray(feature)
+        for b in box:  # [label, center-x, center-y, width, height]
+            x0 = b[1] - b[3] / 2
+            y0 = b[2] - b[4] / 2
+            x1 = b[1] + b[3] / 2
+            y1 = b[2] + b[4] / 2
+            l_x0 = math.floor(l_width * x0)
+            l_y0 = math.floor(l_height * y0)
+            l_x1 = math.ceil(l_width * x1)
+            l_y1 = math.ceil(l_height * y1)
+            # extracted_feature[:,:,l_y0:l_y1,l_x0:l_x1] = feature[:,:,l_y0:l_y1,l_x0:l_x1]
+            extracted_feature[:, :, l_y0:l_y1, l_x0:l_x1] = feat_np[:, :, l_y0:l_y1, l_x0:l_x1]
+        return extracted_feature
