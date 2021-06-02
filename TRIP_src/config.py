@@ -34,6 +34,9 @@ INPUT_SIZE = 1000
 HIDDEN_SIZE = 100
 COMPARISON_LOSS_MARGIN = 0.3
 THRESHOLD_SIMILAR_RISK = 0.11
+RISK_TYPE = 'seq_risk'
+WEIGHT_DECAY = 0
+MOMENTUM = 0
 OPTIMIZER = "ADADELTA"  # adam | adadelta | adagrad [lr=0.001]  |rmsprop [lr=0.01] | momentum_sgd [lr=0.01 momentum=0.9] |
 # nesterovag [lr=0.01 momentum=0.9] | rmspropgraves [lr=0.0001 momentum=0.9] | sgd [lr=0.01] | smorms3 [lr=0.001]
 

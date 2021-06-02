@@ -8,13 +8,16 @@ Date          Comment
 05152021      First revision
 """
 import torch
-import torch.cuda
+import torch.cuda as cuda
+import torch.optim as optim
 import torchvision.datasets as datasets
 
 import numpy as np
 import time
 import os
+import TRIP_src.config as config
 
+from torch import serialization, cuda
 from trip_dataset import TripDataset
 from trip_lstm import TripLSTM
 from trip_c_lstm import TripCLSTM
@@ -117,7 +120,9 @@ class TripTrainer(object):
         self.gpu_id = gpu_id
 
         if self.gpu_id >= 0:
-            pass  # set up later (refer to trip_predictor.py)
+            self.device = cuda.device(self.gpu_id)  # set up later (refer to trip_predictor.py)
+        else:
+            self.device = torch.device(config.DEVICE)
 
         # set model
         self.set_model(execution_mode, model_param_file_path)
@@ -131,6 +136,8 @@ class TripTrainer(object):
         self.tlogf = None
         self.previous_acc = 0
         self.previous_train_acc = 0
+        self.learning_rate = config.LEARNING_RATE
+        self.weight_decay = config.WEIGHT_DECAY  # wait for review
 
     def set_model(self, execution_mode, model_param_file_path):
         """ Set a model and its parameters
@@ -138,21 +145,71 @@ class TripTrainer(object):
              execution_mode (str): execution mode (train | retrain | test)
              model_path (str): a model parameter file path
         """
-        pass
+        self.execution_mode = config.EXECUTION_MODE
+        # default parameters
+        self.model_path = './model/trip_model.npz'
+        self.model_arch = 'MP-C-RL-SPP4-LSTM'  # default model arch = highest accuracy from TRIPv1
+        self.input_size = config.INPUT_SIZE
+        self.hidden_size = config.HIDDEN_SIZE
+        self.roi_bg = config.ROI_BG
+        self.comparative_loss_margin = config.COMPARISON_LOSS_MARGIN
+        self.risk_type = config.RISK_TYPE
+        self.threshold_of_similar_risk = config.THRESHOLD_SIMILAR_RISK
+        self.optimizer_info = config.OPTIMIZER
+        self.momentum = config.MOMENTUM
+
+        # read parameters
+        # bypass first, may not need param files
+
+        # set model
+        if self.model_arch == 'FC-LSTM':
+            self.model = TripLSTM(self.input_size, self.hidden_size)
+        else:
+            self.model = TripCLSTM(self.input_size, self.hidden_size, self.model_arch)
+
+        # set optimizer
+        optimizer_info = self.optimizer_info.lower()
+        if optimizer_info == 'train' or self.execution_mode.lower() == 'retrain':
+            if optimizer_info == 'adam':
+                self.optimizer = optim.Adam(lr=self.learning_rate, weight_decay=self.weight_decay)
+            elif optimizer_info == 'adadelta':
+                self.optimizer = optim.Adadelta(lr=self.learning_rate, weight_decay=self.weight_decay)
+            elif optimizer_info == 'adagrad':
+                self.optimizer = optim.Adagrad(lr=self.learning_rate)
+            elif optimizer_info in ('momentum_sgd', 'sgd'):
+                self.optimizer = optim.SGD(lr=self.learning_rate, momentum=self.momentum,
+                                           weight_decay=self.weight_decay)
+            elif optimizer_info == 'rmsprop':
+                pass # Continue here (6/2/2021)
+            elif optimizer_info == 'rmspropgraves':
+                pass
+            else:
+                raise ValueError('Illegal optimizer info') # remove nesterovag, smorms3,
+
+        # set model to optimizer
+
+        else: # test model
+            # set up test environment
+            pass
+
 
     def open_log_file(self):
         """
         Open a log file
         :return:
         """
-        pass
+        if self.execution_mode == 'train':
+            self.tlogf = open(self.tlog_path, 'x', encoding='utf-8')  # 20190510
+        elif self.execution_mode == 'retrain':
+            self.tlogf = open(self.tlog_path, 'a', encoding='utf-8')
 
     def close_log_file(self):
         """
         Close a log file
         :return:
         """
-        pass
+        if self.tlogf is not None:
+            self.tlogf.close()
 
     def write_log_header(self):
         pass
