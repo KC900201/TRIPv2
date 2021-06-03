@@ -169,29 +169,40 @@ class TripTrainer(object):
 
         # set optimizer
         optimizer_info = self.optimizer_info.lower()
-        if optimizer_info == 'train' or self.execution_mode.lower() == 'retrain':
-            if optimizer_info == 'adam':
-                self.optimizer = optim.Adam(lr=self.learning_rate, weight_decay=self.weight_decay)
-            elif optimizer_info == 'adadelta':
-                self.optimizer = optim.Adadelta(lr=self.learning_rate, weight_decay=self.weight_decay)
-            elif optimizer_info == 'adagrad':
-                self.optimizer = optim.Adagrad(lr=self.learning_rate)
-            elif optimizer_info in ('momentum_sgd', 'sgd'):
-                self.optimizer = optim.SGD(lr=self.learning_rate, momentum=self.momentum,
-                                           weight_decay=self.weight_decay)
-            elif optimizer_info == 'rmsprop':
-                pass # Continue here (6/2/2021)
-            elif optimizer_info == 'rmspropgraves':
-                pass
+        if self.execution_mode == 'train' or self.execution_mode == 'retrain':
+            if optimizer_info == 'train' or self.execution_mode.lower() == 'retrain':
+                if optimizer_info == 'adam':
+                    self.optimizer = optim.Adam(lr=self.learning_rate, weight_decay=self.weight_decay)
+                elif optimizer_info == 'adadelta':
+                    self.optimizer = optim.Adadelta(lr=self.learning_rate, weight_decay=self.weight_decay)
+                elif optimizer_info == 'adagrad':
+                    self.optimizer = optim.Adagrad(lr=self.learning_rate)
+                elif optimizer_info in ('momentum_sgd', 'sgd'):
+                    self.optimizer = optim.SGD(lr=self.learning_rate, momentum=self.momentum,
+                                               weight_decay=self.weight_decay)
+                elif optimizer_info == 'rmsprop':
+                    self.optimizer = optim.RMSprop(lr=self.learning_rate)
+                else:
+                    raise ValueError('Illegal optimizer info')  # remove nesterovag, smorms3, rmspropgraves
+
+            # set model to optimizer
+            if self.execution_mode == 'train':  # Double check
+                self.optimizer = self.optimizer.add_param_group(self.model.parameters())
             else:
-                raise ValueError('Illegal optimizer info') # remove nesterovag, smorms3,
+                print('Loading a model: {}'.format(self.model_path))
+                np.load(self.model_path, self.model)  # load a model
+                self.optimizer = self.optimizer.add_param_group(self.model.parameters())  # set model to an optimizer
+                np.load(self.model_path.replace('model.npz', 'optimizer.npz'), self.optimizer)  # load an optimizer
+                print('done')
+        else:  # test model
+            print('Loading a model: {}'.format(self.model_path))  # Double check
+            np.load(self.model_path, self.model)
+            print(' done')
 
-        # set model to optimizer
-
-        else: # test model
-            # set up test environment
-            pass
-
+        if self.gpu_id >= 0:
+            self.device = cuda.device(self.gpu_id)  # set up later (refer to trip_predictor.py)
+        else:
+            self.device = torch.device(config.DEVICE)
 
     def open_log_file(self):
         """
@@ -211,15 +222,52 @@ class TripTrainer(object):
         if self.tlogf is not None:
             self.tlogf.close()
 
-    def write_log_header(self):
-        pass
+    def write_log_header(self):  # Do we still need it if we have TensorBoard?
+        self.tlogf.write('[Head]\n')
+        self.tlogf.write('Train DS 1: {0}, {1}\n'.format(os.path.basename(self.train_ds1.ds_path), self.train_risk1))
+        self.tlogf.write('Train DS 2: {0}, {1}\n'.format(os.path.basename(self.train_ds2.ds_path), self.train_risk2))
+        self.tlogf.write('Test DS 1: {0}, {1}\n'.format(os.path.basename(self.test_ds1.ds_path), self.test_risk1))
+        self.tlogf.write('Test DS 2: {0}, {1}\n'.format(os.path.basename(self.test_ds2.ds_path), self.test_risk2))
+        self.tlogf.write('Train DS length: {}\n'.format(self.train_ds_length))
+        self.tlogf.write('Test DS length: {}\n'.format(self.test_ds_length))
+        # Layer info
+        layer_info = self.train_ds1.get_layer_info()
+        self.tlogf.write(
+            'Layer: {0} ({1},{2},{3})\n'.format(layer_info[0], layer_info[1], layer_info[2], layer_info[3]))
+        self.tlogf.write('Box type: {}\n'.format(self.train_ds1.get_box_type()))
+        # Model architecture
+        self.tlogf.write('Model arch: {}\n'.format(self.model_arch))
+        # Input size and hidden size
+        self.tlogf.write('Input size: {}\n'.format(self.input_size))
+        self.tlogf.write('Hidden size: {}\n'.format(self.hidden_size))
+        # ROI
+        if len(self.roi_bg) == 2:
+            bg = '(' + self.roi_bg[0] + ',' + str(self.roi_bg[1]) + ')'
+        else:
+            bg = '(' + self.roi_bg[0] + ')'
+        self.tlogf.write('ROI BG: {}\n'.format(bg))
+        # Hyperparameters
+        self.tlogf.write('Risk type: {}\n'.format(self.risk_type))
+        self.tlogf.write('Comparative loss margin: {}\n'.format(self.comparative_loss_margin))
+        self.tlogf.write('Optimizer info: {}\n'.format(self.optimizer_info))
+        self.tlogf.write('Minibatch size: {}\n'.format(self.minibatch_size))
+        self.tlogf.write('Threshold of similar risk: {}\n'.format(self.threshold_of_similar_risk))
+        self.tlogf.write('[Body]\n')
+        self.tlogf.flush()
 
     def learn_model(self):
         """
         Learning without trainer
         :return:
         """
-        pass
+        self.open_log_file()
+        self.write_log_header()
+
+        # redefine the number of epochs (for retrain)
+        start_epoch = self.optimizer
+        num_of_epoch = self.num_of_epoch - start_epoch
+        # Rewrite training process to suit Pytorch CNN flow (refer to Pytorch basics)
+        # Continue 6/3/2021
 
     def learn_model_mix(self):
         """
