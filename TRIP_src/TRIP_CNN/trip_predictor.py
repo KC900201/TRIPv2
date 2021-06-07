@@ -12,6 +12,7 @@ import os
 import TRIP_src.config as config
 import torch
 from torch import serialization, cuda
+from torch.utils.data import DataLoader
 import numpy as np
 
 from trip_lstm import TripLSTM
@@ -115,10 +116,8 @@ class TripPredictor(object):
         np.load(self.model_path, self.model)
 
         print(' done')
-        if self.gpu_id >= 0: ## take note
+        if self.gpu_id >= 0:  ## take note
             self.model.to(self.device)
-
-
 
     def open_log_file(self):
         """
@@ -164,7 +163,18 @@ class TripPredictor(object):
         # open log file
         self.open_log_file()
         self.write_log_header()
-        # prediction function (Contine 5/29/2021)
+
+        # prediction (Try if can use train loader)
+        for i in range(self.ds_length):
+            sample = [self.ds.get_example(i)]
+            print(sample[0][0])
+            if self.plogf is not None:
+                self.plogf.write(sample[0][0] + '\n')
+            input_feature_seq = self.ds.prepare_input_sequence(sample, self.roi_bg)
+            for t in range(0, len(input_feature_seq), self.window_size):
+                # risk calculation
+                pass  # will continue here
+                # log
 
         # close log file
         self.close_log_file()
