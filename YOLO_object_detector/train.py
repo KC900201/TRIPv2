@@ -2,7 +2,7 @@ import config
 import torch
 import torch.optim as optim
 
-from YOLO_object_detector.YOLOv3.model_v3 import YOLOv3
+from YOLO_object_detector.YOLO_model.model_v3 import YOLOv3
 from tqdm import tqdm
 from utils import (
     mean_average_precision,

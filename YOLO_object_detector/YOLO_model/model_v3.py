@@ -161,7 +161,7 @@ class YOLOv3(nn.Module):
 
 if __name__ == "__main__":
     num_classes = 20
-    IMAGE_SIZE = 416  # YOLOv1 = 448, YOLOv3 = 416
+    IMAGE_SIZE = 416  # YOLOv1 = 448, YOLO_model = 416
 
     model = YOLOv3(num_classes=num_classes)
     x = torch.randn((2, 3, IMAGE_SIZE, IMAGE_SIZE))
